@@ -170,7 +170,7 @@ class TestBatchAtomicity:
         assert r1.success
 
         # Op 2: fails (stub verb)
-        op2 = parse_op("style A1 bold")
+        op2 = parse_op("chart bar A1:D10")
         r2 = adapter.dispatch_op(op2, model, log)
         assert not r2.success  # NotImplementedError caught
 
