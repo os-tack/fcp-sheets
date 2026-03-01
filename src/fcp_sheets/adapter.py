@@ -192,6 +192,18 @@ class SheetsAdapter:
 
         return result
 
+    def take_snapshot(self, model: SheetsModel) -> bytes:
+        """Return byte snapshot for batch rollback (C7)."""
+        return model.snapshot()
+
+    def restore_snapshot(self, model: SheetsModel, snapshot: bytes) -> None:
+        """Restore model from snapshot and rebuild indices."""
+        model.restore(snapshot)
+        self.rebuild_indices(model)
+        # Reset data block state in case we were mid-accumulation
+        self._data_buffer = None
+        self._data_anchor = None
+
     def dispatch_query(self, query: str, model: SheetsModel) -> str:
         """Execute a query against the model."""
         return dispatch_query(query, model, self.index)
