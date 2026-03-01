@@ -11,6 +11,22 @@ from fcp_sheets.model.refs import parse_cell_ref, parse_range_ref, RangeRef
 from fcp_sheets.server.resolvers import SheetsOpContext
 
 
+# Legend position aliases — LLMs often use full words
+_LEGEND_POSITION_MAP: dict[str, str] = {
+    "r": "r",
+    "l": "l",
+    "t": "t",
+    "b": "b",
+    "tr": "tr",
+    "right": "r",
+    "left": "l",
+    "top": "t",
+    "bottom": "b",
+    "top-right": "tr",
+    "topright": "tr",
+}
+
+
 def _get_title_text(title_obj) -> str | None:
     """Extract the plain text string from an openpyxl Title object.
 
@@ -128,15 +144,22 @@ def _chart_add(op: ParsedOp, ctx: SheetsOpContext) -> OpResult:
             return OpResult(success=False, message=f"Invalid categories range: {cat_range!r}")
         chart.set_categories(cat_ref)
 
-    # Set legend position
+    # Set legend position (normalize aliases like "bottom" → "b")
     legend_pos = op.params.get("legend")
     if legend_pos:
+        normalized = _LEGEND_POSITION_MAP.get(legend_pos.lower())
+        if normalized is None:
+            available = ", ".join(sorted(set(_LEGEND_POSITION_MAP.values())))
+            return OpResult(
+                success=False,
+                message=f"Unknown legend position: {legend_pos!r}. Use: {available}",
+            )
         if chart.legend is not None:
-            chart.legend.position = legend_pos
+            chart.legend.position = normalized
         else:
             from openpyxl.chart.legend import Legend
             chart.legend = Legend()
-            chart.legend.position = legend_pos
+            chart.legend.position = normalized
 
     # Parse size WxH (in approximate screen units, convert to cm)
     size_str = op.params.get("size")

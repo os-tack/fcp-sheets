@@ -137,6 +137,44 @@ class TestChartAdd:
         chart = ctx.active_sheet._charts[0]
         assert chart.legend.position == "b"
 
+    def test_add_chart_with_legend_alias_bottom(self, ctx: SheetsOpContext):
+        _setup_data(ctx)
+        op = ParsedOp(
+            verb="chart",
+            positionals=["add", "bar"],
+            params={"data": "B1:D5", "title": "AliasBottom", "legend": "bottom"},
+            raw='chart add bar title:"AliasBottom" data:B1:D5 legend:bottom',
+        )
+        result = op_chart(op, ctx)
+        assert result.success
+        chart = ctx.active_sheet._charts[0]
+        assert chart.legend.position == "b"
+
+    def test_add_chart_with_legend_alias_right(self, ctx: SheetsOpContext):
+        _setup_data(ctx)
+        op = ParsedOp(
+            verb="chart",
+            positionals=["add", "bar"],
+            params={"data": "B1:D5", "title": "AliasRight", "legend": "Right"},
+            raw='chart add bar title:"AliasRight" data:B1:D5 legend:Right',
+        )
+        result = op_chart(op, ctx)
+        assert result.success
+        chart = ctx.active_sheet._charts[0]
+        assert chart.legend.position == "r"
+
+    def test_add_chart_with_legend_invalid(self, ctx: SheetsOpContext):
+        _setup_data(ctx)
+        op = ParsedOp(
+            verb="chart",
+            positionals=["add", "bar"],
+            params={"data": "B1:D5", "title": "BadLegend", "legend": "center"},
+            raw='chart add bar title:"BadLegend" data:B1:D5 legend:center',
+        )
+        result = op_chart(op, ctx)
+        assert not result.success
+        assert "Unknown legend position" in result.message
+
     def test_add_chart_with_style(self, ctx: SheetsOpContext):
         _setup_data(ctx)
         op = ParsedOp(

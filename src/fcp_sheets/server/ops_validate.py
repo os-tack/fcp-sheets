@@ -54,8 +54,17 @@ def _validate_list(op: ParsedOp, ctx: SheetsOpContext, range_str: str) -> OpResu
                 success=False,
                 message="Usage: validate RANGE list Val1,Val2,Val3 | validate RANGE list range:A1:A10",
             )
-        # Join remaining positionals as comma-separated values
-        values = ",".join(op.positionals[2:])
+        # Reconstruct the value string — the tokenizer may have split
+        # multi-word items on spaces (e.g. "Exceeded,On Track,At Risk"
+        # becomes positionals ["Exceeded,On", "Track,At", "Risk"]).
+        raw = " ".join(op.positionals[2:])
+        if "," in raw:
+            # Comma-delimited: split on commas, strip whitespace per item
+            items = [item.strip() for item in raw.split(",") if item.strip()]
+            values = ",".join(items)
+        else:
+            # Space-delimited: each positional is a separate item
+            values = ",".join(op.positionals[2:])
         formula1 = f'"{values}"'
 
     dv = DataValidation(type="list", formula1=formula1, allow_blank=True)

@@ -39,6 +39,22 @@ class TestValidateList:
         assert len(dvs) == 1
         assert '"Red,Green,Blue"' in dvs[0].formula1
 
+    def test_list_with_multiword_comma_items(self, ctx: SheetsOpContext):
+        """Multi-word items like 'On Track' should stay intact when comma-separated."""
+        # Simulates tokenizer output for: validate H4:H12 list Exceeded,On Track,At Risk
+        op = ParsedOp(
+            verb="validate",
+            positionals=["H4:H12", "list", "Exceeded,On", "Track,At", "Risk"],
+            params={},
+            raw="validate H4:H12 list Exceeded,On Track,At Risk",
+        )
+        result = op_validate(op, ctx)
+        assert result.success
+        ws = ctx.active_sheet
+        dvs = ws.data_validations.dataValidation
+        assert len(dvs) == 1
+        assert dvs[0].formula1 == '"Exceeded,On Track,At Risk"'
+
     def test_list_with_range(self, ctx: SheetsOpContext):
         # Set up options in a column
         ws = ctx.active_sheet
