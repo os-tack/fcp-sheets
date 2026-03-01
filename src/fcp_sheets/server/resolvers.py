@@ -39,12 +39,23 @@ class SheetsOpContext:
 
     @property
     def active_sheet(self) -> Worksheet:
-        """The currently active worksheet."""
+        """The currently active worksheet.
+
+        Uses name-based tracking from index as primary source of truth,
+        falling back to openpyxl's index-based wb.active if the name
+        is missing or stale.
+        """
+        name = self.index.active_sheet
+        if name and name in self.wb.sheetnames:
+            return self.wb[name]
         return self.wb.active  # type: ignore[return-value]
 
     @property
     def active_sheet_name(self) -> str:
         """Name of the active worksheet."""
+        name = self.index.active_sheet
+        if name and name in self.wb.sheetnames:
+            return name
         ws = self.wb.active
         return ws.title if ws else ""
 

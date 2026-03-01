@@ -1,7 +1,7 @@
 {
   "name": "fcp-sheets",
   "description": "Semantic spreadsheet operations for LLMs",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "author": {
     "name": "Scott Meyer"

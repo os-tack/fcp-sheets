@@ -129,6 +129,35 @@ class TestSheetActivate:
         result = op_sheet(op, ctx)
         assert not result.success
 
+    def test_activate_returns_star_prefix(self, ctx: SheetsOpContext):
+        ctx.wb.create_sheet("Revenue")
+        op = ParsedOp(verb="sheet", positionals=["activate", "Revenue"], raw="sheet activate Revenue")
+        result = op_sheet(op, ctx)
+        assert result.prefix == "*"
+
+    def test_activate_survives_remove_of_other_sheet(self, ctx: SheetsOpContext):
+        """Add Revenue, activate it, remove Sheet1 — Revenue should still be active."""
+        ctx.wb.create_sheet("Revenue")
+        ctx.index.active_sheet = "Revenue"
+        ctx.wb.active = ctx.wb.sheetnames.index("Revenue")
+
+        # Remove Sheet1 (not the active one)
+        op_remove = ParsedOp(verb="sheet", positionals=["remove", "Sheet1"], raw="sheet remove Sheet1")
+        result = op_sheet(op_remove, ctx)
+        assert result.success
+        assert ctx.index.active_sheet == "Revenue"
+
+    def test_remove_active_sheet_falls_back(self, ctx: SheetsOpContext):
+        """Remove the active sheet — should fall back to remaining sheet."""
+        ctx.wb.create_sheet("Revenue")
+        ctx.index.active_sheet = "Sheet1"
+
+        op_remove = ParsedOp(verb="sheet", positionals=["remove", "Sheet1"], raw="sheet remove Sheet1")
+        result = op_sheet(op_remove, ctx)
+        assert result.success
+        assert ctx.index.active_sheet == "Revenue"
+        assert "Sheet1" not in ctx.wb.sheetnames
+
 
 class TestSheetMissingArgs:
     def test_no_action(self, ctx: SheetsOpContext):

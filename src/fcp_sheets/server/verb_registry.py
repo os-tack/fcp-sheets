@@ -185,7 +185,7 @@ VERBS: list[VerbSpec] = [
     # --- CONDITIONAL FORMATTING ---
     VerbSpec(
         verb="cond-fmt",
-        syntax="cond-fmt RANGE TYPE [params...]",
+        syntax="cond-fmt RANGE TYPE [params...]\n  Types: cell-is OP VALUE | formula =EXPR | color-scale | data-bar | icon-set | duplicate | unique | top N | bottom N",
         category="conditional-formatting",
         params=["min-color", "max-color", "mid-color", "color", "icons", "fill", "bold"],
         description="Apply conditional formatting rules.",

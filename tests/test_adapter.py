@@ -254,6 +254,81 @@ class TestDataBlockMode:
         assert ws.cell(row=2, column=1).value == "01234"  # Text, not 1234
 
 
+class TestActiveSheetTracking:
+    """Bug 3: Name-based active sheet tracking."""
+
+    def test_activate_persists_through_ops(self, adapter: SheetsAdapter):
+        """After activate, subsequent ops target the activated sheet."""
+        model = adapter.create_empty("Track Test", {})
+        log = EventLog()
+
+        # Add and activate Revenue
+        adapter.dispatch_op(parse_op("sheet add Revenue"), model, log)
+        adapter.dispatch_op(parse_op("sheet activate Revenue"), model, log)
+
+        # Set a cell — should go to Revenue
+        adapter.dispatch_op(parse_op("set A1 test"), model, log)
+
+        assert model.wb["Revenue"].cell(row=1, column=1).value == "test"
+        assert adapter.index.active_sheet == "Revenue"
+
+    def test_activate_not_overwritten_by_adapter(self, adapter: SheetsAdapter):
+        """adapter.dispatch_op must not overwrite index.active_sheet."""
+        model = adapter.create_empty("No Overwrite", {})
+        log = EventLog()
+
+        adapter.dispatch_op(parse_op("sheet add Revenue"), model, log)
+        adapter.dispatch_op(parse_op("sheet activate Revenue"), model, log)
+
+        # Do a normal op — previously line 186 overwrote active_sheet
+        adapter.dispatch_op(parse_op("set A1 42"), model, log)
+
+        assert adapter.index.active_sheet == "Revenue"
+
+    def test_multi_sheet_workflow(self, adapter: SheetsAdapter):
+        """Add → activate → write → activate back → write → verify."""
+        model = adapter.create_empty("Multi", {})
+        log = EventLog()
+
+        adapter.dispatch_op(parse_op("sheet add Revenue"), model, log)
+        adapter.dispatch_op(parse_op("sheet add Metrics"), model, log)
+
+        adapter.dispatch_op(parse_op("sheet activate Revenue"), model, log)
+        adapter.dispatch_op(parse_op('set A1 "revenue data"'), model, log)
+
+        adapter.dispatch_op(parse_op("sheet activate Metrics"), model, log)
+        adapter.dispatch_op(parse_op('set A1 "metrics data"'), model, log)
+
+        assert model.wb["Revenue"].cell(row=1, column=1).value == "revenue data"
+        assert model.wb["Metrics"].cell(row=1, column=1).value == "metrics data"
+
+
+class TestDataBlockStructuralVerbs:
+    """Bug 3: Structural verbs must not be swallowed during data block mode."""
+
+    def test_sheet_during_data_block_auto_flushes(self, adapter: SheetsAdapter):
+        """If 'sheet activate' arrives during data block, auto-flush first."""
+        model = adapter.create_empty("Auto Flush", {})
+        log = EventLog()
+
+        # Start data block
+        adapter.dispatch_op(parse_op("data A1"), model, log)
+        adapter.dispatch_op(
+            ParsedOp(verb="name,score", raw="Name,Score"), model, log,
+        )
+
+        # Sheet command during data block — should auto-flush
+        adapter.dispatch_op(parse_op("sheet add Revenue"), model, log)
+
+        # Data should have been flushed
+        ws = model.wb["Sheet1"]
+        assert ws.cell(row=1, column=1).value == "Name"
+        assert ws.cell(row=1, column=2).value == "Score"
+
+        # Sheet should have been created
+        assert "Revenue" in model.wb.sheetnames
+
+
 class TestGetDigest:
     def test_digest(self, adapter: SheetsAdapter):
         model = adapter.create_empty("Digest", {})

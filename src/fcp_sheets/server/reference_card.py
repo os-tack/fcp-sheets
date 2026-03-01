@@ -39,7 +39,16 @@ EXTRA_SECTIONS: dict[str, str] = {
         "  Combine to intersect: @sheet:Revenue @col:E @type:formula"
     ),
     "Border Styles": "thin | medium | thick | dashed | dotted | double | hair\n  Sides: all | outline | top | bottom | left | right | inner | h | v",
-    "Cond-Fmt Operators": "gt | lt | gte | lte | eq | neq | between | not-between",
+    "Conditional Formatting": (
+        "cond-fmt RANGE cell-is OP VALUE [VALUE2] [fill:#HEX] [color:#HEX] [bold]\n"
+        "  cond-fmt RANGE formula =EXPR [fill:#HEX] [color:#HEX] [bold]\n"
+        "  cond-fmt RANGE color-scale [min-color:#HEX] [max-color:#HEX] [mid-color:#HEX]\n"
+        "  cond-fmt RANGE data-bar [color:#HEX]\n"
+        "  cond-fmt RANGE icon-set [icons:arrows|flags|traffic|rating|symbols]\n"
+        "  cond-fmt RANGE duplicate|unique [fill:#HEX] [color:#HEX]\n"
+        "  cond-fmt RANGE top|bottom N [fill:#HEX] [color:#HEX]\n"
+        "  Operators (cell-is only): gt | lt | gte | lte | eq | neq | between | not-between"
+    ),
     "Table Styles": "TableStyleLight1-21 | TableStyleMedium1-28 | TableStyleDark1-11",
     "Response Prefixes": (
         "+  cell/data created    ~  chart/table created\n"

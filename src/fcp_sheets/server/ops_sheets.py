@@ -77,12 +77,19 @@ def _sheet_remove(
     if len(ctx.wb.sheetnames) <= 1:
         return OpResult(success=False, message="Cannot remove the last sheet")
 
+    was_active = ctx.index.active_sheet == name
+
     del ctx.wb[name]
     ctx.index.remove_sheet(name)
 
-    # Update active sheet
-    if ctx.wb.active:
-        ctx.index.active_sheet = ctx.wb.active.title
+    # If the removed sheet was active, pick a valid remaining sheet
+    if was_active:
+        remaining = ctx.wb.sheetnames
+        if remaining:
+            ctx.index.active_sheet = remaining[0]
+            ctx.wb.active = 0
+        else:
+            ctx.index.active_sheet = ""
     return OpResult(success=True, message=f"Sheet '{name}' removed", prefix="-")
 
 

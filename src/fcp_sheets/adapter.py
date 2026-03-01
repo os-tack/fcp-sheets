@@ -33,6 +33,10 @@ from fcp_sheets.server.ops_misc import HANDLERS as MISC_HANDLERS
 # Max snapshot events in undo history
 MAX_EVENTS = 15
 
+# Verbs that must never be silently swallowed during data block mode.
+# If these arrive while accumulating a data block, auto-flush first.
+_STRUCTURAL_VERBS = frozenset({"sheet"})
+
 
 class SheetsAdapter:
     """FcpDomainAdapter[SheetsModel, SnapshotEvent] for spreadsheet operations."""
@@ -135,9 +139,14 @@ class SheetsAdapter:
         if self._data_buffer is not None:
             if op.verb == "data" and op.positionals and op.positionals[0].lower() == "end":
                 return self._flush_data_block(model, log)
-            # Accumulate raw line
-            self._data_buffer.append(raw)
-            return OpResult(success=True, message="", prefix="~")
+            # Structural verbs must not be silently swallowed into data buffer
+            if op.verb in _STRUCTURAL_VERBS:
+                self._flush_data_block(model, log)  # auto-close data block
+                # Fall through to normal dispatch below
+            else:
+                # Accumulate raw line
+                self._data_buffer.append(raw)
+                return OpResult(success=True, message="", prefix="~")
 
         # Start a new data block
         if op.verb == "data":
@@ -181,9 +190,6 @@ class SheetsAdapter:
 
         if not result.success:
             return result
-
-        # Rebuild index (lightweight — just update active sheet)
-        self.index.active_sheet = model.wb.active.title if model.wb.active else ""
 
         # Log snapshot for undo
         after = model.snapshot()
