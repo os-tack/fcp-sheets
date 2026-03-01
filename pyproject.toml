@@ -1,10 +1,10 @@
 [project]
 name = "fcp-sheets"
-version = "0.1.5"
+version = "0.1.6"
 description = "Spreadsheet File Context Protocol — semantic spreadsheet operations for LLMs"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "fcp-core>=0.1.4",
+    "fcp-core>=0.1.11",
     "fastmcp>=3.0",
     "openpyxl>=3.1",
 ]
