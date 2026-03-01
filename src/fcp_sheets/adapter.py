@@ -322,12 +322,17 @@ class SheetsAdapter:
                 preview += f" (+{count - 5} more)"
             collision_warning = f"\n! Warning: Overwrote {count} non-empty cell(s): {preview}"
 
-        # Write parsed data to worksheet
+        # Write parsed data to worksheet (skip MergedCell targets)
+        from openpyxl.cell.cell import MergedCell
         max_cols = 0
+        merged_skips = 0
         for i, row_data in enumerate(parsed_rows):
             row = start_row + i
             for j, value in enumerate(row_data):
                 col = start_col + j
+                if isinstance(ws.cell(row=row, column=col), MergedCell):
+                    merged_skips += 1
+                    continue
                 ws.cell(row=row, column=col, value=value)
                 self.index.expand_bounds(ws.title, row, col)
             max_cols = max(max_cols, len(row_data))
@@ -345,7 +350,11 @@ class SheetsAdapter:
         end_addr = f"{index_to_col(start_col)}{start_row}..{index_to_col(start_col + max_cols - 1)}{start_row + rows_written - 1}"
         self.index.record_modified(ws.title, end_addr)
 
-        msg = f"Wrote {rows_written} rows at {anchor_str}{warning}{collision_warning}"
+        merge_warning = ""
+        if merged_skips:
+            merge_warning = f"\n! Warning: Skipped {merged_skips} merged cell(s)"
+
+        msg = f"Wrote {rows_written} rows at {anchor_str}{warning}{collision_warning}{merge_warning}"
         return OpResult(success=True, message=msg, prefix="+")
 
     @staticmethod

@@ -237,6 +237,65 @@ class TestClearErrors:
         assert "Invalid" in result.message or "empty" in result.message
 
 
+class TestMergedCellProtection:
+    """Writing to merged cells should fail gracefully, not crash."""
+
+    def test_set_merged_cell_returns_error(self, ctx: SheetsOpContext):
+        """Writing to a non-top-left cell in a merged range should return an error."""
+        ws = ctx.active_sheet
+        ws.cell(row=1, column=1, value="Title")
+        ws.merge_cells("A1:D1")
+
+        # A1 (top-left) should still work
+        op_a1 = ParsedOp(verb="set", positionals=["A1", "New Title"], raw='set A1 "New Title"')
+        result = op_set(op_a1, ctx)
+        assert result.success
+
+        # B1 (merged cell) should return error, not crash
+        op_b1 = ParsedOp(verb="set", positionals=["B1", "Bad"], raw='set B1 "Bad"')
+        result = op_set(op_b1, ctx)
+        assert not result.success
+        assert "merged range" in result.message
+
+    def test_set_merged_cell_c1_returns_error(self, ctx: SheetsOpContext):
+        """C1 and D1 within A1:D1 merge should also return errors."""
+        ws = ctx.active_sheet
+        ws.merge_cells("A1:D1")
+
+        op = ParsedOp(verb="set", positionals=["C1", "Bad"], raw='set C1 "Bad"')
+        result = op_set(op, ctx)
+        assert not result.success
+        assert "merged range" in result.message
+
+    def test_data_block_skips_merged_cells(
+        self, adapter: SheetsAdapter, model: SheetsModel, log: EventLog,
+    ):
+        """Data block should skip merged cells with a warning."""
+        ws = model.wb.active
+        ws.cell(row=1, column=1, value="Title")
+        ws.merge_cells("A1:C1")
+        adapter.index.active_sheet = ws.title
+
+        # Write data block starting at A1 — row 1 has merged cells
+        start = ParsedOp(verb="data", positionals=["A1"], raw="data A1")
+        adapter.dispatch_op(start, model, log)
+
+        line1 = ParsedOp(verb="X", positionals=[], raw="H1,H2,H3")
+        adapter.dispatch_op(line1, model, log)
+
+        line2 = ParsedOp(verb="a", positionals=[], raw="a,b,c")
+        adapter.dispatch_op(line2, model, log)
+
+        end = ParsedOp(verb="data", positionals=["end"], raw="data end")
+        result = adapter.dispatch_op(end, model, log)
+
+        assert result.success
+        assert "merged cell" in result.message.lower()
+        # Row 2 should have data written successfully
+        assert ws.cell(row=2, column=1).value == "a"
+        assert ws.cell(row=2, column=2).value == "b"
+
+
 class TestClearViaAdapter:
     """Clear through the adapter dispatch (includes snapshot/undo)."""
 

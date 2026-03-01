@@ -99,6 +99,44 @@ class TestChartAdd:
         result = op_chart(op, ctx)
         assert result.success
 
+    def test_categories_auto_adjusted_when_same_start_row(self, ctx: SheetsOpContext):
+        """When data and categories start at the same row, categories should
+        be auto-adjusted to skip the header row (titles_from_data=True eats it)."""
+        _setup_data(ctx)
+        op = ParsedOp(
+            verb="chart",
+            positionals=["add", "bar"],
+            params={"data": "B1:D5", "categories": "A1:A5", "title": "AutoAdj"},
+            raw='chart add bar title:"AutoAdj" data:B1:D5 categories:A1:A5',
+        )
+        result = op_chart(op, ctx)
+        assert result.success
+        chart = ctx.active_sheet._charts[0]
+        # Data has titles_from_data=True: 3 series (B,C,D), 4 data points each (rows 2-5)
+        # Categories should be auto-adjusted from A1:A5 → A2:A5 (4 labels)
+        cat_ref = chart.series[0].cat
+        assert cat_ref is not None
+        # The category reference should start at row 2, not row 1
+        cat_formula = cat_ref.strRef.f if cat_ref.strRef else cat_ref.numRef.f
+        assert "$A$2" in cat_formula, f"Expected categories starting at row 2, got: {cat_formula}"
+
+    def test_categories_not_adjusted_when_different_start_row(self, ctx: SheetsOpContext):
+        """When categories already start below the data header, no adjustment needed."""
+        _setup_data(ctx)
+        op = ParsedOp(
+            verb="chart",
+            positionals=["add", "bar"],
+            params={"data": "B1:D5", "categories": "A2:A5", "title": "NoAdj"},
+            raw='chart add bar title:"NoAdj" data:B1:D5 categories:A2:A5',
+        )
+        result = op_chart(op, ctx)
+        assert result.success
+        chart = ctx.active_sheet._charts[0]
+        cat_ref = chart.series[0].cat
+        assert cat_ref is not None
+        cat_formula = cat_ref.strRef.f if cat_ref.strRef else cat_ref.numRef.f
+        assert "$A$2" in cat_formula, f"Expected categories starting at row 2, got: {cat_formula}"
+
     def test_add_chart_with_size(self, ctx: SheetsOpContext):
         _setup_data(ctx)
         op = ParsedOp(

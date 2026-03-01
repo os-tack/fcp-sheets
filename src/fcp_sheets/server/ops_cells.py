@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from openpyxl.cell.cell import MergedCell
+
 from fcp_core import OpResult, ParsedOp
 
 from fcp_sheets.lib.number_formats import resolve_format
@@ -35,6 +37,16 @@ def op_set(op: ParsedOp, ctx: SheetsOpContext) -> OpResult:
 
     col, row = resolved
     ws = ctx.active_sheet
+
+    # Check for merged cell — writing to non-top-left cells in a merged range
+    # raises AttributeError in openpyxl
+    existing = ws.cell(row=row, column=col)
+    if isinstance(existing, MergedCell):
+        addr = f"{index_to_col(col)}{row}"
+        return OpResult(
+            success=False,
+            message=f"Cannot write to {addr}: cell is part of a merged range. Write to the top-left cell instead.",
+        )
 
     # Parse value
     value = _parse_cell_value(value_str)
@@ -157,6 +169,11 @@ def op_fill(op: ParsedOp, ctx: SheetsOpContext) -> OpResult:
 
     for tgt_col, tgt_row in targets:
         tgt_addr = f"{index_to_col(tgt_col)}{tgt_row}"
+
+        # Skip merged cells (non-top-left cells in a merged range)
+        if isinstance(ws.cell(row=tgt_row, column=tgt_col), MergedCell):
+            warnings.append(f"! Skipped {tgt_addr}: part of merged range")
+            continue
 
         if is_formula:
             # C3: Safe formula translation using openpyxl Translator

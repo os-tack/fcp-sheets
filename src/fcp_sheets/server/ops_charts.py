@@ -142,6 +142,17 @@ def _chart_add(op: ParsedOp, ctx: SheetsOpContext) -> OpResult:
         cat_ref = _parse_range_to_reference(ws, cat_range)
         if cat_ref is None:
             return OpResult(success=False, message=f"Invalid categories range: {cat_range!r}")
+        # titles_from_data=True consumes the first row of data as series titles.
+        # If categories start at the same row as data, adjust to skip that header row
+        # so category count matches data point count.
+        if cat_ref.min_row == data_ref.min_row:
+            cat_ref = Reference(
+                worksheet=ws,
+                min_col=cat_ref.min_col,
+                min_row=cat_ref.min_row + 1,
+                max_col=cat_ref.max_col,
+                max_row=cat_ref.max_row,
+            )
         chart.set_categories(cat_ref)
 
     # Set legend position (normalize aliases like "bottom" → "b")
