@@ -17,7 +17,7 @@ VERBS: list[VerbSpec] = [
         verb="data",
         syntax="data ANCHOR ... data end",
         category="cells",
-        description="Begin bulk data block (CSV lines follow, end with 'data end').",
+        description="Bulk data entry — CSV or markdown table rows between 'data ANCHOR' and 'data end'. Preferred over set for any multi-cell input.",
     ),
     VerbSpec(
         verb="fill",

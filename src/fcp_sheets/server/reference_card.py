@@ -27,16 +27,49 @@ EXTRA_SECTIONS: dict[str, str] = {
     "Border Styles": "thin | medium | thick | dashed | dotted | double | hair\n  Sides: all | outline | top | bottom | left | right | inner | h | v",
     "Cond-Fmt Operators": "gt | lt | gte | lte | eq | neq | between | not-between",
     "Table Styles": "TableStyleLight1-21 | TableStyleMedium1-28 | TableStyleDark1-11",
+    "Data Block Formats": (
+        "CSV:  data A1\\n"
+        "        Name,Age,City\\n"
+        "        Alice,30,NYC\\n"
+        "        Bob,25,LA\\n"
+        "      data end\\n"
+        "  Markdown:  data A1\\n"
+        "               | Name | Age | City |\\n"
+        "               |------|-----|------|\\n"
+        "               | Alice | 30 | NYC |\\n"
+        "             data end\\n"
+        "  Formulas: =SUM(A1:A10), =B2*0.22, =C3/C$8 all work inside data blocks\\n"
+        "  Types: bare numbers → numeric, =expr → formula, \"quoted\" → text, 007 → text"
+    ),
     "Response Prefixes": (
         "+  cell/data created    ~  chart/table created\n"
         "  *  style/format modified  -  cell/range removed\n"
         "  !  error or meta         @  bulk/selector operation"
     ),
+    "Example Workflow": (
+        "1. sheets_session('new \"Q4 Report\"')\n"
+        "  2. sheets(['sheet add Revenue'])\n"
+        "  3. sheets(['merge A1:F1', 'set A1 \"Revenue Summary\"',\n"
+        "             'style A1:F1 bold size:16 fill:#1a1a2e color:#FFFFFF'])\n"
+        "  4. sheets(['data A2',\n"
+        "             '| Month | Revenue | COGS | Gross Profit |',\n"
+        "             '|-------|---------|------|--------------|',\n"
+        "             '| Jan | 500000 | =B3*0.22 | =B3-C3 |',\n"
+        "             '| Feb | 600000 | =B4*0.22 | =B4-C4 |',\n"
+        "             '| Total | =SUM(B3:B4) | =SUM(C3:C4) | =SUM(D3:D4) |',\n"
+        "             'data end'])\n"
+        "  5. sheets(['style A2:D2 bold fill:#4472C4 color:#FFFFFF',\n"
+        "             'style B3:D6 fmt:$#,##0',\n"
+        "             'freeze A3',\n"
+        "             'width A 14', 'width B:D 16'])\n"
+        "  6. sheets(['chart add column title:\"Revenue\" data:B3:B4 categories:A3:A4'])\n"
+        "  7. sheets_session('save as:./report.xlsx')"
+    ),
     "Conventions": (
-        "- Cell references use A1 notation (case-insensitive)\n"
+        "- Use data blocks for tables/grids — never set cells one-by-one\n"
+        "  - Batch multiple ops in one sheets() call for efficiency\n"
         "  - Values beginning with = are formulas\n"
         "  - Quoted strings are text; bare numbers are numeric\n"
-        "  - Use data blocks for bulk entry (avoids cell-by-cell counting)\n"
         "  - Active sheet is implicit target; use sheet:NAME for cross-sheet\n"
         "  - Call sheets_help after context truncation for full reference"
     ),
