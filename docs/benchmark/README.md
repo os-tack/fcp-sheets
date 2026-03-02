@@ -115,7 +115,7 @@ sheets([
     'name define FundSize range:"Executive Summary"!B5',
     'name define InvestedCapital range:"Executive Summary"!B8',
     'validate K3:K12 list items:"Active,Exited,Written Off"',
-    'page-setup orient:landscape fit-width:1',
+    'page-setup orient:landscape fit-width:1 print-title-rows:1:2',
     'protect'
 ])
 ```
