@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sheets": {
+      "command": "uvx",
+      "args": ["--refresh-package", "fcp-sheets", "--python", "3.13", "fcp-sheets"]
+    }
+  }
+}
