@@ -12,5 +12,4 @@ build/
 *.xlsx
 *.xls
 .uv/
-uv.lock
 .DS_Store
