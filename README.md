@@ -64,6 +64,13 @@ Requires Python >= 3.11.
 pip install fcp-sheets
 ```
 
+The `image` verb (inserting images into a workbook) requires Pillow, which is
+an optional extra:
+
+```bash
+pip install 'fcp-sheets[images]'
+```
+
 ### MCP Client Configuration
 
 ```json

@@ -2,10 +2,6 @@
 
 These tests verify that the full pipeline (parse -> dispatch -> model -> index -> query)
 works correctly across realistic multi-step scenarios.
-
-NOTE: fcp-core's parse_op treats colons as key:value separators, so cell ranges
-like A1:B2 and formulas like =SUM(A1:A3) must be dispatched via ParsedOp directly.
-Single-cell references (set A1 Hello) work fine with parse_op.
 """
 
 from __future__ import annotations
@@ -13,37 +9,10 @@ from __future__ import annotations
 import os
 import tempfile
 
-import pytest
-from fcp_core import EventLog, ParsedOp, parse_op
+from fcp_core import EventLog, parse_op
 
 from fcp_sheets.adapter import SheetsAdapter, MAX_EVENTS
 from fcp_sheets.model.snapshot import SheetsModel
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _set(cell: str, value: str) -> ParsedOp:
-    """Build a set op, handling formulas with colons correctly."""
-    return ParsedOp(verb="set", positionals=[cell, value], raw=f"set {cell} {value}")
-
-
-def _style_range(range_str: str, *flags: str, **params: str) -> ParsedOp:
-    """Build a style op for a range (colons in ranges break parse_op)."""
-    raw = f"style {range_str} {' '.join(flags)}"
-    if params:
-        raw += " " + " ".join(f"{k}:{v}" for k, v in params.items())
-    return ParsedOp(verb="style", positionals=[range_str, *flags], params=params, raw=raw)
-
-
-def _border_range(range_str: str, sides: str) -> ParsedOp:
-    """Build a border op for a range."""
-    return ParsedOp(
-        verb="border", positionals=[range_str, sides],
-        raw=f"border {range_str} {sides}",
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -70,9 +39,9 @@ class TestFullWorkflow:
         adapter.dispatch_op(parse_op("set B3 82"), model, log)
         adapter.dispatch_op(parse_op("set C3 B"), model, log)
 
-        # Add formulas (use ParsedOp for colon-containing formulas)
+        # Add formulas
         adapter.dispatch_op(parse_op("set D1 Average"), model, log)
-        adapter.dispatch_op(_set("D2", "=AVERAGE(B2:B3)"), model, log)
+        adapter.dispatch_op(parse_op("set D2 =AVERAGE(B2:B3)"), model, log)
 
         # Verify in-memory state
         ws = model.wb.active
@@ -101,9 +70,9 @@ class TestFullWorkflow:
         adapter.dispatch_op(parse_op("set B1 Q1"), model, log)
         adapter.dispatch_op(parse_op("set B2 50000"), model, log)
 
-        # Style the header (range with colon -> use ParsedOp helper)
-        adapter.dispatch_op(_style_range("A1:B1", "bold"), model, log)
-        adapter.dispatch_op(_border_range("A1:B2", "all"), model, log)
+        # Style the header (range with colon)
+        adapter.dispatch_op(parse_op("style A1:B1 bold"), model, log)
+        adapter.dispatch_op(parse_op("border A1:B2 all"), model, log)
 
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as f:
             path = f.name
@@ -250,12 +219,12 @@ class TestDataBlockIntegration:
     ):
         # Enter data via data block
         adapter.dispatch_op(parse_op("data A1"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="name,score", raw="Name,Score"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="alice,95", raw="Alice,95"), model, log)
+        adapter.dispatch_op(parse_op("Name,Score"), model, log)
+        adapter.dispatch_op(parse_op("Alice,95"), model, log)
         adapter.dispatch_op(parse_op("data end"), model, log)
 
-        # Apply formatting (range -> use ParsedOp helper)
-        adapter.dispatch_op(_style_range("A1:B1", "bold"), model, log)
+        # Apply formatting (range with colon)
+        adapter.dispatch_op(parse_op("style A1:B1 bold"), model, log)
 
         # Verify both data and formatting exist
         ws = model.wb.active
@@ -271,14 +240,14 @@ class TestDataBlockIntegration:
     ):
         """Data block followed by a formula referencing the block data."""
         adapter.dispatch_op(parse_op("data A1"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="val", raw="Value"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="10", raw="10"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="20", raw="20"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="30", raw="30"), model, log)
+        adapter.dispatch_op(parse_op("Value"), model, log)
+        adapter.dispatch_op(parse_op("10"), model, log)
+        adapter.dispatch_op(parse_op("20"), model, log)
+        adapter.dispatch_op(parse_op("30"), model, log)
         adapter.dispatch_op(parse_op("data end"), model, log)
 
-        # Add sum formula (colon in formula -> use ParsedOp)
-        adapter.dispatch_op(_set("A5", "=SUM(A2:A4)"), model, log)
+        # Add sum formula (colon in formula)
+        adapter.dispatch_op(parse_op("set A5 =SUM(A2:A4)"), model, log)
 
         ws = model.wb.active
         assert ws.cell(row=2, column=1).value == 10
@@ -291,12 +260,12 @@ class TestDataBlockIntegration:
     ):
         """Data block followed by styling AND borders."""
         adapter.dispatch_op(parse_op("data A1"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="a,b", raw="A,B"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="1,2", raw="1,2"), model, log)
+        adapter.dispatch_op(parse_op("A,B"), model, log)
+        adapter.dispatch_op(parse_op("1,2"), model, log)
         adapter.dispatch_op(parse_op("data end"), model, log)
 
-        adapter.dispatch_op(_style_range("A1:B1", "bold"), model, log)
-        adapter.dispatch_op(_border_range("A1:B2", "all"), model, log)
+        adapter.dispatch_op(parse_op("style A1:B1 bold"), model, log)
+        adapter.dispatch_op(parse_op("border A1:B2 all"), model, log)
 
         ws = model.wb.active
         assert ws.cell(row=1, column=1).value == "A"
@@ -396,8 +365,8 @@ class TestUndoRedoComplex:
     ):
         """Undo a data block restores the entire block atomically."""
         adapter.dispatch_op(parse_op("data A1"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="x,y", raw="X,Y"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="1,2", raw="1,2"), model, log)
+        adapter.dispatch_op(parse_op("X,Y"), model, log)
+        adapter.dispatch_op(parse_op("1,2"), model, log)
         adapter.dispatch_op(parse_op("data end"), model, log)
 
         assert model.wb.active.cell(row=1, column=1).value == "X"
@@ -538,8 +507,7 @@ class TestQueryIntegration:
         adapter.dispatch_op(parse_op("set A2 10"), model, log)
         adapter.dispatch_op(parse_op("set A3 20"), model, log)
         adapter.dispatch_op(parse_op("set B1 Total"), model, log)
-        # Use ParsedOp for formula with colon
-        adapter.dispatch_op(_set("B2", "=SUM(A2:A3)"), model, log)
+        adapter.dispatch_op(parse_op("set B2 =SUM(A2:A3)"), model, log)
 
         stats = adapter.dispatch_query("stats", model)
         assert "Data cells: 4" in stats
@@ -666,7 +634,7 @@ class TestErrorRecovery:
         """After a failed data block, adapter is back in normal mode."""
         # Start a data block with invalid anchor
         adapter.dispatch_op(parse_op("data @invalid_anchor"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="1,2", raw="1,2"), model, log)
+        adapter.dispatch_op(parse_op("1,2"), model, log)
         r = adapter.dispatch_op(parse_op("data end"), model, log)
         assert not r.success
 
@@ -708,8 +676,8 @@ class TestCrossSubsystem:
     ):
         """Queries work on data entered via data blocks."""
         adapter.dispatch_op(parse_op("data A1"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="a,b", raw="Product,Price"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="w,10", raw="Widget,10"), model, log)
+        adapter.dispatch_op(parse_op("Product,Price"), model, log)
+        adapter.dispatch_op(parse_op("Widget,10"), model, log)
         adapter.dispatch_op(parse_op("data end"), model, log)
 
         plan = adapter.dispatch_query("plan", model)
@@ -776,8 +744,8 @@ class TestIndexIntegrity:
     ):
         """Index bounds expand after data block write."""
         adapter.dispatch_op(parse_op("data B2"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="a,b,c", raw="A,B,C"), model, log)
-        adapter.dispatch_op(ParsedOp(verb="1,2,3", raw="1,2,3"), model, log)
+        adapter.dispatch_op(parse_op("a,b,c"), model, log)
+        adapter.dispatch_op(parse_op("1,2,3"), model, log)
         adapter.dispatch_op(parse_op("data end"), model, log)
 
         bounds = adapter.index.get_bounds("Sheet1")

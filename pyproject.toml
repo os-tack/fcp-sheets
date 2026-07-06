@@ -9,6 +9,11 @@ dependencies = [
     "openpyxl>=3.1",
 ]
 
+[project.optional-dependencies]
+images = [
+    "Pillow>=10.0",
+]
+
 # [tool.uv.sources]
 # For local development, use `make link-py` instead of uncommenting:
 # fcp-core = { path = "../fcp-core/python", editable = true }

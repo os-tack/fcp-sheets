@@ -186,7 +186,7 @@ class SheetsAdapter:
             result = handler(op, ctx)
         except NotImplementedError as exc:
             return OpResult(success=False, message=str(exc))
-        except (ValueError, KeyError, TypeError) as exc:
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
             return OpResult(success=False, message=f"Error: {exc}")
 
         if not result.success:

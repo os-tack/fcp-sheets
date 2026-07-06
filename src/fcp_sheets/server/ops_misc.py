@@ -119,7 +119,7 @@ def op_image(op: ParsedOp, ctx: SheetsOpContext) -> OpResult:
     try:
         img = Image(path)
     except ImportError:
-        return OpResult(success=False, message="Pillow is required for image support. Install with: pip install Pillow")
+        return OpResult(success=False, message="Pillow is required for image support. Install with: pip install 'fcp-sheets[images]'")
 
     # Apply size if specified
     size_str = op.params.get("size")
